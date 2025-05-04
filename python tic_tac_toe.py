@@ -40,23 +40,7 @@ class Player(ABC):
 
     @abstractmethod
     def get_move(self, board):
-        if self._moves:
-            if self._move_index < len(self._moves):
-                move = self._moves[self._move_index]
-                self._move_index += 1
-                return move
-            raise Exception("No more predefined moves provided.")
-        else:
-            while True:
-                try:
-                    move = int(input(f"Player '{self.symbol}', enter your move (0-8): "))
-                    if move in board.get_available_moves():
-                        return move
-                    else:
-                        print("Invalid move. Try again.")
-                except ValueError:
-                    print("Please enter a number between 0 and 8.")
-
+        pass
 
 class HumanPlayer(Player):
     def __init__(self, symbol, moves=None):
@@ -65,22 +49,22 @@ class HumanPlayer(Player):
         self._move_index = 0
 
     def get_move(self, board):
-        if self._moves:
+        while True:
             if self._move_index < len(self._moves):
                 move = self._moves[self._move_index]
                 self._move_index += 1
-                return move
-            raise Exception("No more predefined moves provided.")
-        else:
-            while True:
-                try:
-                    move = int(input(f"Player '{self.symbol}', enter your move (0-8): "))
-                    if move in board.get_available_moves():
-                        return move
-                    else:
-                        print("Invalid move. Try again.")
-                except ValueError:
-                    print("Please enter a number between 0 and 8.")
+                if move in board.get_available_moves():
+                    return move
+                else:
+                    print(f"Neteisingas ėjimas iš failo: {move}. Įveskite naują ėjimą (0-8):")
+            try:
+                move = int(input("Tavo ėjimas (0-8): "))
+                if move in board.get_available_moves():
+                    return move
+                else:
+                    print("Negalimas ėjimas. Bandyk dar kartą.")
+            except ValueError:
+                print("Neteisingas įvedimas. Bandyk dar kartą.")
 
 class AIPlayer(Player):
     def get_move(self, board):
@@ -114,8 +98,13 @@ class Game:
         while True:
             self.board.display()
             player = self.players[current_player_idx]
-            move = player.get_move(self.board)
-            self.board.update(move, player.symbol)
+            try:
+                move = player.get_move(self.board)
+                self.board.update(move, player.symbol)
+            except Exception as e:
+                print(f"Klaida atliekant ėjimą: {e}")
+                self.save_game_result("Error")
+                break
 
             if self.board.check_winner(player.symbol):
                 self.board.display()
@@ -185,24 +174,24 @@ class TestTicTacToe(unittest.TestCase):
         self.assertNotIn(4, available)
         self.assertEqual(len(available), 7)
 
+# Entry point simulation
 if __name__ == "__main__":
-    print("What do you want to do?")
-    print("1. Play Game")
-    print("2. Run Tests")
-    print("3. View Game History")
-    choice = input("Enter 1, 2 or 3: ").strip()
-
-    if choice == "1":
-        game = Game()
-        game.play()
-    elif choice == "2":
-        print("\nRunning Tests")
-        suite = unittest.defaultTestLoader.loadTestsFromTestCase(TestTicTacToe)
-        runner = unittest.TextTestRunner(verbosity=2)
-        runner.run(suite)
-    elif choice == "3":
-        game = Game()
-        game.read_game_results()
+    # Skaityti ėjimus iš failo
+    move_file_path = "moves.txt"
+    if os.path.exists(move_file_path):
+        with open(move_file_path, "r") as f:
+            simulated_moves = [int(line.strip()) for line in f.readlines() if line.strip().isdigit()]
     else:
-        print("Invalid choice.")
+        simulated_moves = [0, 4, 1, 3, 2]  # Atsarginiai ėjimai jei nėra failo
 
+    print("Simulating Tic-Tac-Toe Game from file-based moves")
+    game = Game(human_moves=simulated_moves)
+    game.play()
+
+    print("\nRunning Tests")
+    suite = unittest.defaultTestLoader.loadTestsFromTestCase(TestTicTacToe)
+    runner = unittest.TextTestRunner(verbosity=2)
+    runner.run(suite)
+
+    print("\nViewing Game History")
+    game.read_game_results()
